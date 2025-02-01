@@ -1,10 +1,16 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using TaskManagerPro.Data;
 
 namespace TaskManagerPro.Data
 {
-    public class TaskManagerProContext(DbContextOptions<TaskManagerProContext> options) : IdentityDbContext<User>(options)
+    public class TaskManagerProContext : IdentityDbContext<User>
     {
+        public TaskManagerProContext(DbContextOptions<TaskManagerProContext> options)
+            : base(options)
+        {
+        }
+
+        // Dodaj DbSet za zadatke
+        public DbSet<TaskItem> Tasks { get; set; }
     }
 }

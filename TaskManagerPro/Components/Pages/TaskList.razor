@@ -1,0 +1,90 @@
+﻿@page "/tasks"
+@using TaskManagerPro.Data
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject TaskManagerProContext DbContext
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+
+<h3>Pregled zadataka</h3>
+
+@if (tasks == null)
+{
+    <p>Učitavam zadatke...</p>
+}
+else if (!tasks.Any())
+{
+    <p>Nema kreiranih zadataka.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Naslov</th>
+                <th>Opis</th>
+                <th>Rok</th>
+                <th>Status</th>
+                <th>Akcije</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in tasks)
+            {
+                <tr>
+                    <td>@task.Title</td>
+                    <td>@task.Description</td>
+                    <td>@(task.DueDate?.ToString("dd.MM.yyyy") ?? "-")</td>
+                    <td>@(task.IsCompleted ? "Gotov" : "Nije gotov")</td>
+                    <td>
+                        @if (!task.IsCompleted)
+                        {
+                            <button class="btn btn-sm btn-success me-1" @onclick="() => MarkAsCompleted(task)">Označi kao gotov</button>
+                        }
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteTask(task)">Obriši</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TaskItem>? tasks;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var userId = UserManager.GetUserId(user);
+            tasks = await DbContext.Tasks
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+        }
+    }
+
+    private async Task MarkAsCompleted(TaskItem task)
+    {
+        task.IsCompleted = true;
+        DbContext.Tasks.Update(task);
+        await DbContext.SaveChangesAsync();
+        await LoadTasks();
+    }
+
+    private async Task DeleteTask(TaskItem task)
+    {
+        DbContext.Tasks.Remove(task);
+        await DbContext.SaveChangesAsync();
+        tasks?.Remove(task);
+    }
+}
