@@ -12,5 +12,6 @@ namespace TaskManagerPro.Data
 
         // Dodaj DbSet za zadatke
         public DbSet<TaskItem> Tasks { get; set; }
+
     }
 }

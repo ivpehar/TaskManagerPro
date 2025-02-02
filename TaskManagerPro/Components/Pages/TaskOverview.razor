@@ -1,0 +1,87 @@
+﻿@page "/task-overview"
+@using TaskManagerPro.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject TaskManagerProContext DbContext
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<h3 class="mb-4">📊 Pregled Zadataka</h3>
+
+@if (tasks.Count == 0)
+{
+    <p class="text-muted">🚀 Nema zadataka. Dodajte prvi zadatak!</p>
+}
+else
+{
+    <div class="task-container">
+        @foreach (var task in tasks)
+        {
+            <div class="card task-card">
+                <div class="card-header d-flex justify-content-between">
+                    <strong>@task.Title</strong>
+                    <span class="badge @(task.Priority == "Visok" ? "bg-danger" : task.Priority == "Srednji" ? "bg-warning" : "bg-info")">
+                        @task.Priority
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="card-text"><strong>📝 Opis:</strong> @task.Description</p>
+                    <p class="card-text"><strong>📅 Kreirano:</strong> @task.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+
+                    @if (task.DueDate.HasValue)
+                    {
+                        <p class="card-text"><strong>⏳ Rok:</strong> @task.DueDate.Value.ToString("dd.MM.yyyy")</p>
+                    }
+
+                    <p class="card-text"><strong>🏷️ Tagovi:</strong> @task.Tags</p>
+
+                    <span class="badge @(task.IsCompleted ? "bg-success" : "bg-secondary")">
+                        @(task.IsCompleted ? "✅ Završeno" : "🔄 U tijeku")
+                    </span>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<style>
+    .task-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .task-card {
+        border-left: 5px solid;
+        padding: 15px;
+        transition: 0.3s;
+    }
+
+        .task-card:hover {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+</style>
+
+@code {
+    private List<TaskItem> tasks = new();
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = UserManager.GetUserId(user) ?? "";
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            tasks = await DbContext.Tasks
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+        }
+    }
+}

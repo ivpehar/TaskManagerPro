@@ -1,0 +1,148 @@
+﻿@page "/"
+@using TaskManagerPro.Data
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject TaskManagerProContext DbContext
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>Task Manager Dashboard</PageTitle>
+
+<div class="dashboard-container">
+    <h1 class="mb-4">🚀 Dobrodošli u TaskManagerPro</h1>
+    <p class="lead text-muted">Upravljajte svojim zadacima brzo i učinkovito.</p>
+
+    <!-- Statistika zadataka -->
+    <div class="stats-container">
+        <div class="stat-card bg-primary">
+            <h3>@TotalTasks</h3>
+            <p>Ukupno zadataka</p>
+        </div>
+        <div class="stat-card bg-success">
+            <h3>@CompletedTasks</h3>
+            <p>Završeni zadaci ✅</p>
+        </div>
+        <div class="stat-card bg-warning">
+            <h3>@InProgressTasks</h3>
+            <p>U tijeku ⏳</p>
+        </div>
+    </div>
+
+    <!-- Najnoviji zadaci -->
+    <h3 class="mt-5">🆕 Najnoviji zadaci</h3>
+    @if (latestTasks.Count == 0)
+    {
+        <p class="text-muted">Nema novih zadataka. Dodajte prvi zadatak! 🚀</p>
+    }
+    else
+    {
+        <div class="latest-tasks">
+            @foreach (var task in latestTasks)
+            {
+                <div class="task-card">
+                    <div class="task-header">
+                        <span class="task-title">@task.Title</span>
+                        <span class="badge @(task.Priority == "Visok" ? "bg-danger" : task.Priority == "Srednji" ? "bg-warning" : "bg-info")">
+                            @task.Priority
+                        </span>
+                    </div>
+                    <p class="task-desc">@task.Description</p>
+                    <div class="task-footer">
+                        <span class="text-muted">📅 @task.CreatedAt.ToString("dd.MM.yyyy")</span>
+                        <span class="badge @(task.IsCompleted ? "bg-success" : "bg-secondary")">
+                            @(task.IsCompleted ? "✅ Završeno" : "🔄 U tijeku")
+                        </span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .dashboard-container {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .stats-container {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .stat-card {
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 200px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .latest-tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .task-card {
+        border-left: 5px solid;
+        padding: 15px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s;
+    }
+
+        .task-card:hover {
+            transform: scale(1.02);
+        }
+
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+    }
+
+    .task-footer {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+</style>
+
+@code {
+    private int TotalTasks = 0;
+    private int CompletedTasks = 0;
+    private int InProgressTasks = 0;
+    private List<TaskItem> latestTasks = new();
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = UserManager.GetUserId(user) ?? "";
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var allTasks = await DbContext.Tasks
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            TotalTasks = allTasks.Count;
+            CompletedTasks = allTasks.Count(t => t.IsCompleted);
+            InProgressTasks = TotalTasks - CompletedTasks;
+            latestTasks = allTasks.Take(3).ToList(); // Prikaz zadnjih 3 zadatka
+        }
+    }
+}

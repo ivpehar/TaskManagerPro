@@ -1,0 +1,74 @@
+﻿@page "/arhiva"
+@using TaskManagerPro.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject TaskManagerProContext DbContext
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<h3 class="mb-4">📂 Arhiva završenih zadataka</h3>
+
+@if (archivedTasks.Count == 0)
+{
+    <p class="text-muted">⏳ Nema arhiviranih zadataka.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var task in archivedTasks)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="ms-2 text-muted">@task.Title</span>
+                    <small class="text-muted ms-3">@task.DueDate?.ToString("dd.MM.yyyy")</small>
+                </div>
+                <div>
+                    <button class="btn btn-secondary btn-sm me-2" @onclick="() => RestoreTask(task)">♻️ Vrati</button>
+                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteTask(task.Id)">🗑️ Obriši</button>
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<TaskItem> archivedTasks = new();
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = UserManager.GetUserId(user) ?? "";
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            archivedTasks = await DbContext.Tasks
+                .Where(t => t.UserId == userId && t.IsCompleted)
+                .OrderByDescending(t => t.DueDate)
+                .ToListAsync();
+        }
+    }
+
+    private async Task RestoreTask(TaskItem task)
+    {
+        task.IsCompleted = false;
+        await DbContext.SaveChangesAsync();
+        archivedTasks.Remove(task);
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        var task = await DbContext.Tasks.FindAsync(id);
+        if (task != null)
+        {
+            DbContext.Tasks.Remove(task);
+            await DbContext.SaveChangesAsync();
+            archivedTasks.Remove(task);
+        }
+    }
+}

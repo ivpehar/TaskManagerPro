@@ -83,7 +83,7 @@ else
                     </div>
                     <div class="card-footer d-flex justify-content-between">
                         <div>
-                            <input type="checkbox" checked="@task.IsCompleted" @onchange="async (e) => await ToggleTaskCompletion(task, e)" />
+                            <input type="checkbox" checked="@task.IsCompleted" @onchange="() => ToggleTaskCompletion(task)" />
                             <span class="ms-1 @(task.IsCompleted ? "text-success" : "")">@(task.IsCompleted ? "✅ Završeno" : "🔄 U tijeku")</span>
                         </div>
                         <div>
@@ -176,11 +176,17 @@ else
         NewTask = new TaskItem();
     }
 
-    private async Task ToggleTaskCompletion(TaskItem task, ChangeEventArgs e)
+    private async Task ToggleTaskCompletion(TaskItem task)
     {
-        task.IsCompleted = (bool)e.Value;
+        task.IsCompleted = !task.IsCompleted;
         await DbContext.SaveChangesAsync();
+
+        if (task.IsCompleted)
+        {
+            tasks.Remove(task);  // Makni ga s liste aktivnih zadataka
+        }
     }
+
 
     private async Task DeleteTask(int id)
     {
