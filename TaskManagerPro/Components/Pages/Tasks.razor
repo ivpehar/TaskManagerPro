@@ -1,5 +1,4 @@
 ﻿@page "/tasks"
-@rendermode InteractiveServer
 @using TaskManagerPro.Data
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
@@ -8,60 +7,107 @@
 @inject TaskManagerProContext DbContext
 @inject UserManager<User> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject NavigationManager NavigationManager
 @attribute [Authorize]
+@rendermode InteractiveServer
 
-<h3 class="mb-4">Upravljanje zadacima</h3>
+<h3 class="mb-4">🚀 Upravljanje Zadacima</h3>
 
-<!-- Forma za unos novog zadatka -->
-<EditForm Model="@NewTask" OnValidSubmit="AddTask" FormName="TaskForm">
+<!-- Forma za dodavanje / uređivanje zadatka -->
+<EditForm Model="@NewTask" OnValidSubmit="SaveTask">
     <DataAnnotationsValidator />
     <ValidationSummary />
+
     <div class="mb-3">
-        <label class="form-label">Naslov</label>
-        <InputText class="form-control" @bind-Value="NewTask.Title" />
+        <label class="form-label">📌 Naslov</label>
+        <InputText class="form-control" @bind-value="NewTask.Title" />
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Opis</label>
-        <InputTextArea class="form-control" @bind-Value="NewTask.Description" />
+        <label class="form-label">📝 Opis</label>
+        <InputTextArea class="form-control" @bind-value="NewTask.Description" />
     </div>
-    <button type="submit" class="btn btn-primary">Dodaj zadatak</button>
+
+    <div class="mb-3">
+        <label class="form-label">⏳ Rok</label>
+        <InputDate TValue="DateTime?" class="form-control" @bind-value="NewTask.DueDate" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">🔥 Prioritet</label>
+        <select class="form-control" @bind="NewTask.Priority">
+            <option value="Nizak">Nizak</option>
+            <option value="Srednji">Srednji</option>
+            <option value="Visok">Visok</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">🏷️ Tagovi (odvojeni zarezima)</label>
+        <InputText class="form-control" @bind-value="NewTask.Tags" />
+    </div>
+
+    <button type="submit" class="btn btn-success">
+        @(EditingTaskId == null ? "Dodaj zadatak" : "Spremi izmjene")
+    </button>
+
+    <button type="button" class="btn btn-secondary ms-2" @onclick="CancelEdit" style="display: @(EditingTaskId == null ? "none" : "inline-block")">
+        Odustani
+    </button>
 </EditForm>
 
 <hr />
 
-<!-- Prikaz zadataka -->
+<!-- Prikaz svih zadataka -->
 @if (tasks.Count == 0)
 {
-    <p class="text-muted">Nema zadataka.</p>
+    <p class="text-muted">🚀 Nema zadataka. Dodajte prvi zadatak!</p>
 }
 else
 {
-    <ul class="list-group">
+    <div class="row">
         @foreach (var task in tasks)
         {
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <input type="checkbox" checked="@task.IsCompleted" @onchange="() => ToggleTaskCompletion(task)" />
-                    <span class="ms-2 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">@task.Title - @task.Description</span>
+            <div class="col-md-6">
+                <div class="card mb-3 @(task.IsCompleted ? "border-success" : task.Priority == "Visok" ? "border-danger" : "border-secondary")">
+                    <div class="card-header d-flex justify-content-between">
+                        <strong>@task.Title</strong>
+                        <span class="badge @(task.Priority == "Visok" ? "bg-danger" : task.Priority == "Srednji" ? "bg-warning" : "bg-info")">@task.Priority</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted">@task.Description</p>
+                        @if (task.DueDate.HasValue)
+                        {
+                            <p class="card-text"><small class="text-muted">🗓️ Rok: @task.DueDate.Value.ToString("dd.MM.yyyy")</small></p>
+                        }
+                        <p class="card-text"><small class="text-muted">🏷️ Tagovi: @task.Tags</small></p>
+                    </div>
+                    <div class="card-footer d-flex justify-content-between">
+                        <div>
+                            <input type="checkbox" checked="@task.IsCompleted" @onchange="async (e) => await ToggleTaskCompletion(task, e)" />
+                            <span class="ms-1 @(task.IsCompleted ? "text-success" : "")">@(task.IsCompleted ? "✅ Završeno" : "🔄 U tijeku")</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary btn-sm me-2" @onclick="() => EditTask(task)">✏️</button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => DeleteTask(task.Id)">🗑️</button>
+                        </div>
+                    </div>
                 </div>
-                <small class="text-muted">Dodano: @task.CreatedAt.ToString("dd.MM.yyyy")</small>
-                <button class="btn btn-danger btn-sm" @onclick="() => DeleteTask(task.Id)">🗑️</button>
-            </li>
+            </div>
         }
-    </ul>
+    </div>
 }
 
 @code {
     private List<TaskItem> tasks = new();
-    private TaskItem NewTask = new();
+    private TaskItem NewTask { get; set; } = new TaskItem();
+    private int? EditingTaskId = null;
     private string userId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        userId = UserManager.GetUserId(user) ?? string.Empty;
+        userId = UserManager.GetUserId(user) ?? "";
 
         if (!string.IsNullOrEmpty(userId))
         {
@@ -72,26 +118,67 @@ else
         }
     }
 
-    private async Task AddTask()
+    private async Task SaveTask()
     {
         if (string.IsNullOrWhiteSpace(NewTask.Title) || string.IsNullOrWhiteSpace(NewTask.Description))
         {
             return;
         }
 
-        NewTask.UserId = userId;
-        NewTask.CreatedAt = DateTime.UtcNow;
+        if (EditingTaskId == null)
+        {
+            NewTask.UserId = userId;
+            NewTask.CreatedAt = DateTime.UtcNow;
+            DbContext.Tasks.Add(NewTask);
+            tasks.Insert(0, NewTask);
+        }
+        else
+        {
+            var task = tasks.FirstOrDefault(t => t.Id == EditingTaskId);
+            if (task != null)
+            {
+                task.Title = NewTask.Title;
+                task.Description = NewTask.Description;
+                task.DueDate = NewTask.DueDate;
+                task.Priority = NewTask.Priority;
+                task.Tags = NewTask.Tags;
+                DbContext.Tasks.Update(task);
+            }
+        }
 
-        DbContext.Tasks.Add(NewTask);
         await DbContext.SaveChangesAsync();
+        ResetForm();
+    }
 
-        tasks.Insert(0, NewTask);
+    private void EditTask(TaskItem task)
+    {
+        EditingTaskId = task.Id;
+        NewTask = new TaskItem
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                DueDate = task.DueDate,
+                Priority = task.Priority,
+                Tags = task.Tags,
+                UserId = task.UserId
+            };
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        EditingTaskId = null;
         NewTask = new TaskItem();
     }
 
-    private async Task ToggleTaskCompletion(TaskItem task)
+    private async Task ToggleTaskCompletion(TaskItem task, ChangeEventArgs e)
     {
-        task.IsCompleted = !task.IsCompleted;
+        task.IsCompleted = (bool)e.Value;
         await DbContext.SaveChangesAsync();
     }
 

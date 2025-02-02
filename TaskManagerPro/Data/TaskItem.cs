@@ -22,6 +22,11 @@ namespace TaskManagerPro.Data
 
         public DateTime? DueDate { get; set; } = null;
 
+        [Required]
+        public string Priority { get; set; } = "Srednji"; // Nizak, Srednji, Visok
+
+        public string Tags { get; set; } = string.Empty; // Razni tagovi npr. "Posao, Važno"
+
         [ForeignKey("UserId")]
         public string? UserId { get; set; }
 
