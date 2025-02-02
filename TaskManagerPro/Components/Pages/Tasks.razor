@@ -1,0 +1,108 @@
+﻿@page "/tasks"
+@rendermode InteractiveServer
+@using TaskManagerPro.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject TaskManagerProContext DbContext
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+
+<h3 class="mb-4">Upravljanje zadacima</h3>
+
+<!-- Forma za unos novog zadatka -->
+<EditForm Model="@NewTask" OnValidSubmit="AddTask" FormName="TaskForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label class="form-label">Naslov</label>
+        <InputText class="form-control" @bind-Value="NewTask.Title" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Opis</label>
+        <InputTextArea class="form-control" @bind-Value="NewTask.Description" />
+    </div>
+    <button type="submit" class="btn btn-primary">Dodaj zadatak</button>
+</EditForm>
+
+<hr />
+
+<!-- Prikaz zadataka -->
+@if (tasks.Count == 0)
+{
+    <p class="text-muted">Nema zadataka.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var task in tasks)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <input type="checkbox" checked="@task.IsCompleted" @onchange="() => ToggleTaskCompletion(task)" />
+                    <span class="ms-2 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">@task.Title - @task.Description</span>
+                </div>
+                <small class="text-muted">Dodano: @task.CreatedAt.ToString("dd.MM.yyyy")</small>
+                <button class="btn btn-danger btn-sm" @onclick="() => DeleteTask(task.Id)">🗑️</button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<TaskItem> tasks = new();
+    private TaskItem NewTask = new();
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userId = UserManager.GetUserId(user) ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            tasks = await DbContext.Tasks
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.Id)
+                .ToListAsync();
+        }
+    }
+
+    private async Task AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(NewTask.Title) || string.IsNullOrWhiteSpace(NewTask.Description))
+        {
+            return;
+        }
+
+        NewTask.UserId = userId;
+        NewTask.CreatedAt = DateTime.UtcNow;
+
+        DbContext.Tasks.Add(NewTask);
+        await DbContext.SaveChangesAsync();
+
+        tasks.Insert(0, NewTask);
+        NewTask = new TaskItem();
+    }
+
+    private async Task ToggleTaskCompletion(TaskItem task)
+    {
+        task.IsCompleted = !task.IsCompleted;
+        await DbContext.SaveChangesAsync();
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        var task = await DbContext.Tasks.FindAsync(id);
+        if (task != null)
+        {
+            DbContext.Tasks.Remove(task);
+            await DbContext.SaveChangesAsync();
+            tasks.Remove(task);
+        }
+    }
+}

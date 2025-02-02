@@ -1,15 +1,17 @@
-﻿using TaskManagerPro.Components;
-using Microsoft.AspNetCore.Components.Authorization;
+﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TaskManagerPro.Components;
 using TaskManagerPro.Components.Account;
 using TaskManagerPro.Data;
+using TaskManagerPro.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("TaskManagerProContextConnection") ?? throw new InvalidOperationException("Connection string 'TaskManagerProContextConnection' not found.");;
+var connectionString = builder.Configuration.GetConnectionString("TaskManagerProContextConnection") ?? throw new InvalidOperationException("Connection string 'TaskManagerProContextConnection' not found."); ;
 
 builder.Services.AddDbContext<TaskManagerProContext>(options => options.UseSqlServer(connectionString));
 
+builder.Services.AddScoped<ITaskService, TaskService>();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -54,6 +56,6 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapAdditionalIdentityEndpoints();;
+app.MapAdditionalIdentityEndpoints(); ;
 
 app.Run();

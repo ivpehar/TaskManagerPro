@@ -3,7 +3,7 @@
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">TaskManagerPro</a>
+        <a class="navbar-brand" href="/">TaskManagerPro</a>
     </div>
 </div>
 
@@ -12,22 +12,15 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
 
-        <!-- Link za dodavanje zadatka -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="add-task">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Dodaj zadatak
-            </NavLink>
-        </div>
-
-        <!-- Link za pregled zadataka -->
+        <!-- Jedna opcija za zadatke (sve na istoj stranici) -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="tasks">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Pregled zadataka
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Zadaci
             </NavLink>
         </div>
 
@@ -35,14 +28,14 @@
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @(context?.User?.Identity?.Name ?? "Profil")
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <form action="Account/Logout" method="post">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
+                        <button type="submit" class="nav-link btn btn-link">
                             <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
                         </button>
                     </form>
